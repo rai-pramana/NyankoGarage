@@ -17,24 +17,53 @@ interface Product {
     minStockLevel: number;
     isActive: boolean;
     stock?: { quantity: number };
+    transactionCount?: number;
+    canDelete?: boolean;
 }
+
+interface PaginationMeta {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+const CATEGORIES = ['Fluids', 'Brakes', 'Filters', 'Ignition', 'Electrical', 'Engine', 'Accessories', 'Other'];
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 export default function ProductsPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
+    const [meta, setMeta] = useState<PaginationMeta>({ total: 0, page: 1, limit: 10, totalPages: 1 });
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
+    // Fetch products when filters, page, or limit changes
     useEffect(() => {
         fetchProducts();
-    }, []);
+    }, [page, limit, categoryFilter, statusFilter]);
 
     const fetchProducts = async () => {
+        setLoading(true);
         try {
-            const response = await api.get('/products');
+            const params = new URLSearchParams();
+            params.append('page', page.toString());
+            params.append('limit', limit.toString());
+            if (search) params.append('search', search);
+            if (categoryFilter) params.append('category', categoryFilter);
+            if (statusFilter) params.append('status', statusFilter);
+
+            const response = await api.get(`/products?${params.toString()}`);
             setProducts(response.data.data || []);
+            if (response.data.meta) {
+                setMeta(response.data.meta);
+            }
         } catch (error) {
             console.error('Failed to fetch products:', error);
         } finally {
@@ -42,8 +71,17 @@ export default function ProductsPage() {
         }
     };
 
+    // Debounced search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setPage(1); // Reset to first page on search
+            fetchProducts();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [search]);
+
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this product?')) return;
+        if (!confirm('Are you sure you want to permanently delete this product? This action cannot be undone.')) return;
 
         setDeletingId(id);
         try {
@@ -57,17 +95,17 @@ export default function ProductsPage() {
         }
     };
 
-    const filteredProducts = products.filter(p =>
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.sku.toLowerCase().includes(search.toLowerCase())
-    );
-
     const getStockStatus = (product: Product) => {
         const qty = product.stock?.quantity || 0;
-        if (qty === 0) return { label: 'Out of Stock', color: 'bg-red-500/10 text-red-400 border-red-500/20' };
-        if (qty <= product.minStockLevel) return { label: 'Low Stock', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' };
-        return { label: 'In Stock', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+        if (qty === 0) return { label: 'Out of Stock', color: 'bg-red-500/10 text-red-400 border-red-500/20', value: 'out_of_stock' };
+        if (qty <= product.minStockLevel) return { label: 'Low Stock', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', value: 'low_stock' };
+        return { label: 'In Stock', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', value: 'in_stock' };
     };
+
+    // Client-side filtering by status (since backend status filter is for stock levels)
+    const filteredProducts = statusFilter
+        ? products.filter(p => getStockStatus(p).value === statusFilter)
+        : products;
 
     return (
         <DashboardLayout>
@@ -99,19 +137,46 @@ export default function ProductsPage() {
                             className="w-full pl-10 pr-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-[#7c3bed] focus:border-transparent"
                         />
                     </div>
-                    <select className="px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm">
-                        <option>All Categories</option>
-                        <option>Fluids</option>
-                        <option>Brakes</option>
-                        <option>Filters</option>
-                        <option>Electrical</option>
+                    <select
+                        value={categoryFilter}
+                        onChange={(e) => {
+                            setCategoryFilter(e.target.value);
+                            setPage(1);
+                        }}
+                        className="px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm cursor-pointer"
+                    >
+                        <option value="">All Categories</option>
+                        {CATEGORIES.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                        ))}
                     </select>
-                    <select className="px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm">
-                        <option>All Status</option>
-                        <option>In Stock</option>
-                        <option>Low Stock</option>
-                        <option>Out of Stock</option>
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => {
+                            setStatusFilter(e.target.value);
+                            setPage(1);
+                        }}
+                        className="px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm cursor-pointer"
+                    >
+                        <option value="">All Status</option>
+                        <option value="in_stock">In Stock</option>
+                        <option value="low_stock">Low Stock</option>
+                        <option value="out_of_stock">Out of Stock</option>
                     </select>
+                    {(categoryFilter || statusFilter || search) && (
+                        <button
+                            onClick={() => {
+                                setCategoryFilter('');
+                                setStatusFilter('');
+                                setSearch('');
+                                setPage(1);
+                            }}
+                            className="px-3 py-2.5 text-slate-400 hover:text-white text-sm flex items-center gap-1"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">close</span>
+                            Clear Filters
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -141,7 +206,9 @@ export default function ProductsPage() {
                                 {filteredProducts.length === 0 ? (
                                     <tr>
                                         <td colSpan={8} className="px-6 py-8 text-center text-slate-400">
-                                            {search ? 'No products match your search' : 'No products found. Add your first product!'}
+                                            {search || categoryFilter || statusFilter
+                                                ? 'No products match your filters'
+                                                : 'No products found. Add your first product!'}
                                         </td>
                                     </tr>
                                 ) : (
@@ -170,12 +237,18 @@ export default function ProductsPage() {
                                                     </button>
                                                     <button
                                                         onClick={() => handleDelete(product.id)}
-                                                        disabled={deletingId === product.id}
-                                                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors ml-1 disabled:opacity-50"
-                                                        title="Delete product"
+                                                        disabled={deletingId === product.id || product.canDelete === false}
+                                                        className={`p-1.5 rounded-lg transition-colors ml-1 disabled:opacity-50 disabled:cursor-not-allowed ${product.canDelete === false
+                                                            ? 'text-slate-600 cursor-not-allowed'
+                                                            : 'text-slate-400 hover:text-red-400 hover:bg-red-500/10'
+                                                            }`}
+                                                        title={product.canDelete === false
+                                                            ? `Cannot delete - used in ${product.transactionCount} transaction(s)`
+                                                            : 'Delete product'
+                                                        }
                                                     >
                                                         <span className="material-symbols-outlined text-[20px]">
-                                                            {deletingId === product.id ? 'hourglass_empty' : 'delete'}
+                                                            {deletingId === product.id ? 'hourglass_empty' : product.canDelete === false ? 'lock' : 'delete'}
                                                         </span>
                                                     </button>
                                                 </td>
@@ -188,17 +261,45 @@ export default function ProductsPage() {
                     </div>
                 )}
 
-                {/* Footer */}
-                <div className="border-t border-slate-800 p-4 flex items-center justify-between">
-                    <p className="text-sm text-slate-400">
-                        Showing <span className="text-white font-medium">{filteredProducts.length}</span> of{' '}
-                        <span className="text-white font-medium">{products.length}</span> products
-                    </p>
+                {/* Footer with Pagination */}
+                <div className="border-t border-slate-800 p-4 flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm text-slate-400">Rows per page:</span>
+                        <select
+                            value={limit >= 1000 ? 'all' : limit}
+                            onChange={(e) => {
+                                const newLimit = e.target.value === 'all' ? 1000 : parseInt(e.target.value);
+                                setLimit(newLimit);
+                                setPage(1);
+                            }}
+                            className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm cursor-pointer"
+                        >
+                            {PAGE_SIZE_OPTIONS.map(size => (
+                                <option key={size} value={size}>{size}</option>
+                            ))}
+                            <option value="all">All</option>
+                        </select>
+                        <p className="text-sm text-slate-400">
+                            Showing <span className="text-white font-medium">{filteredProducts.length}</span> of{' '}
+                            <span className="text-white font-medium">{meta.total}</span> products
+                        </p>
+                    </div>
                     <div className="flex items-center gap-2">
-                        <button className="px-3 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-400 hover:bg-slate-800 disabled:opacity-50" disabled>
+                        <button
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page <= 1}
+                            className="px-3 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-400 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             Previous
                         </button>
-                        <button className="px-3 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-400 hover:bg-slate-800">
+                        <span className="text-sm text-slate-400">
+                            Page <span className="text-white">{page}</span> of <span className="text-white">{meta.totalPages || 1}</span>
+                        </span>
+                        <button
+                            onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+                            disabled={page >= meta.totalPages}
+                            className="px-3 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-400 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             Next
                         </button>
                     </div>

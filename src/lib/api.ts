@@ -1,18 +1,29 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-
+// Create axios instance without baseURL initially
 export const api = axios.create({
-    baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json',
     },
     withCredentials: true,
 });
 
-// Request interceptor to add auth token
+// Helper to get API URL dynamically (works on client only)
+const getApiUrl = () => {
+    if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        return `http://${hostname}:3001/api`;
+    }
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+};
+
+// Request interceptor to add auth token AND set baseURL dynamically
 api.interceptors.request.use(
     (config) => {
+        // Set baseURL dynamically on each request
+        config.baseURL = getApiUrl();
+
+        // Add auth token
         const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -34,7 +45,8 @@ api.interceptors.response.use(
             try {
                 const refreshToken = localStorage.getItem('refreshToken');
                 if (refreshToken) {
-                    const response = await axios.post(`${API_URL}/auth/refresh`, {
+                    const baseUrl = getApiUrl();
+                    const response = await axios.post(`${baseUrl}/auth/refresh`, {
                         refreshToken,
                     });
 

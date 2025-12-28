@@ -79,7 +79,7 @@ export default function TransactionActions({ transaction, onUpdate, onViewDetail
             </button>
 
             {open && (
-                <div className="absolute right-0 top-full mt-1 w-44 bg-[#1e293b] border border-slate-700 rounded-lg shadow-xl overflow-hidden z-30">
+                <div className="absolute right-0 top-full mt-1 w-44 bg-[#1e293b] border border-slate-700 rounded-lg shadow-xl overflow-hidden z-50">
                     {/* View Details */}
                     <button
                         onClick={() => {

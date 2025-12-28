@@ -17,12 +17,16 @@ interface Transaction {
     items?: { length: number };
 }
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
 export default function TransactionsPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
     const [showSaleModal, setShowSaleModal] = useState(false);
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
@@ -69,6 +73,17 @@ export default function TransactionsPage() {
         const matchesStatus = !statusFilter || txn.status === statusFilter;
         return matchesSearch && matchesType && matchesStatus;
     });
+
+    // Pagination calculations
+    const totalPages = Math.ceil(filteredTransactions.length / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = limit === 1000 ? filteredTransactions.length : startIndex + limit;
+    const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [search, typeFilter, statusFilter, limit]);
 
     const getStatusStyle = (status: string) => {
         switch (status) {
@@ -197,11 +212,25 @@ export default function TransactionsPage() {
                         <option value="COMPLETED">Completed</option>
                         <option value="CANCELED">Canceled</option>
                     </select>
+                    {(typeFilter || statusFilter || search) && (
+                        <button
+                            onClick={() => {
+                                setTypeFilter('');
+                                setStatusFilter('');
+                                setSearch('');
+                                setPage(1);
+                            }}
+                            className="px-3 py-2.5 text-slate-400 hover:text-white text-sm flex items-center gap-1"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">close</span>
+                            Clear Filters
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Transactions Table */}
-            <div className="bg-[#1e293b] rounded-xl border border-slate-800 overflow-hidden">
+            <div className="bg-[#1e293b] rounded-xl border border-slate-800">
                 {loading ? (
                     <div className="p-8 text-center text-slate-400">
                         <div className="inline-block size-8 border-4 border-[#7c3bed] border-t-transparent rounded-full animate-spin mb-2" />
@@ -222,14 +251,14 @@ export default function TransactionsPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800">
-                                {filteredTransactions.length === 0 ? (
+                                {paginatedTransactions.length === 0 ? (
                                     <tr>
                                         <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
                                             No transactions found
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredTransactions.map((txn) => (
+                                    paginatedTransactions.map((txn) => (
                                         <tr key={txn.id} className="hover:bg-slate-800/30 transition-colors">
                                             <td className="px-6 py-4 font-mono text-[#7c3bed] font-medium">{txn.code}</td>
                                             <td className="px-6 py-4">
@@ -267,11 +296,47 @@ export default function TransactionsPage() {
                     </div>
                 )}
 
-                {/* Footer */}
-                <div className="border-t border-slate-800 p-4 flex items-center justify-between">
-                    <p className="text-sm text-slate-400">
-                        Showing <span className="text-white font-medium">{filteredTransactions.length}</span> transactions
-                    </p>
+                {/* Footer with Pagination */}
+                <div className="border-t border-slate-800 p-4 flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm text-slate-400">Rows per page:</span>
+                        <select
+                            value={limit >= 1000 ? 'all' : limit}
+                            onChange={(e) => {
+                                const newLimit = e.target.value === 'all' ? 1000 : parseInt(e.target.value);
+                                setLimit(newLimit);
+                            }}
+                            className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm cursor-pointer"
+                        >
+                            {PAGE_SIZE_OPTIONS.map(size => (
+                                <option key={size} value={size}>{size}</option>
+                            ))}
+                            <option value="all">All</option>
+                        </select>
+                        <p className="text-sm text-slate-400">
+                            Showing <span className="text-white font-medium">{paginatedTransactions.length}</span> of{' '}
+                            <span className="text-white font-medium">{filteredTransactions.length}</span> transactions
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page <= 1}
+                            className="px-3 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-400 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Previous
+                        </button>
+                        <span className="text-sm text-slate-400">
+                            Page <span className="text-white">{page}</span> of <span className="text-white">{totalPages || 1}</span>
+                        </span>
+                        <button
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page >= totalPages}
+                            className="px-3 py-1.5 rounded-lg border border-slate-700 text-sm text-slate-400 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             </div>
 

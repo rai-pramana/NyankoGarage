@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Modal from './Modal';
 import api from '@/lib/api';
 
@@ -27,16 +27,47 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, product }
     const [error, setError] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
-        sku: product?.sku || '',
-        name: product?.name || '',
-        description: product?.description || '',
-        category: product?.category || '',
-        unit: product?.unit || 'pcs',
-        costPrice: product?.costPrice?.toString() || '',
-        sellingPrice: product?.sellingPrice?.toString() || '',
-        minStockLevel: product?.minStockLevel?.toString() || '10',
+        sku: '',
+        name: '',
+        description: '',
+        category: '',
+        unit: 'pcs',
+        costPrice: '',
+        sellingPrice: '',
+        minStockLevel: '10',
         initialStock: '',
     });
+
+    // Reset form when product changes (for edit mode)
+    useEffect(() => {
+        if (product) {
+            setFormData({
+                sku: product.sku || '',
+                name: product.name || '',
+                description: product.description || '',
+                category: product.category || '',
+                unit: product.unit || 'pcs',
+                costPrice: product.costPrice?.toString() || '',
+                sellingPrice: product.sellingPrice?.toString() || '',
+                minStockLevel: product.minStockLevel?.toString() || '10',
+                initialStock: '',
+            });
+        } else {
+            // Reset for add mode
+            setFormData({
+                sku: '',
+                name: '',
+                description: '',
+                category: '',
+                unit: 'pcs',
+                costPrice: '',
+                sellingPrice: '',
+                minStockLevel: '10',
+                initialStock: '',
+            });
+        }
+        setError(null);
+    }, [product, isOpen]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -49,7 +80,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, product }
         setError(null);
 
         try {
-            const payload = {
+            const basePayload = {
                 sku: formData.sku,
                 name: formData.name,
                 description: formData.description || undefined,
@@ -58,13 +89,18 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, product }
                 costPrice: parseFloat(formData.costPrice),
                 sellingPrice: parseFloat(formData.sellingPrice),
                 minStockLevel: parseInt(formData.minStockLevel),
-                initialStock: formData.initialStock ? parseInt(formData.initialStock) : 0,
             };
 
             if (isEditing) {
-                await api.patch(`/products/${product.id}`, payload);
+                // Don't send initialStock for updates
+                await api.patch(`/products/${product.id}`, basePayload);
             } else {
-                await api.post('/products', payload);
+                // Include initialStock for new products
+                const createPayload = {
+                    ...basePayload,
+                    initialStock: formData.initialStock ? parseInt(formData.initialStock) : 0,
+                };
+                await api.post('/products', createPayload);
             }
 
             onSuccess();

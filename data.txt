@@ -1,0 +1,13 @@
+✅ Database Seeded Successfully!
+Created the following dummy data in your Supabase database:
+
+👤 Test Accounts (password: password123)
+Email	Role
+owner@nyanko.garage
+Owner
+admin@nyanko.garage
+Admin
+staff@nyanko.garage
+Staff
+warehouse@nyanko.garage
+Warehouse

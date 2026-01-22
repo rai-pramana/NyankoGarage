@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  STAFF
+  WAREHOUSE
+}
+
+enum TransactionType {
+  SALE
+  PURCHASE
+}
+
+enum TransactionStatus {
+  DRAFT
+  CONFIRMED
+  COMPLETED
+  CANCELED
+}
+
+enum StockMovementType {
+  SALE_OUT
+  PURCHASE_IN
+  ADJUST
+  INIT
+  DAMAGE
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  fullName      String
+  role          UserRole  @default(STAFF)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLogin     DateTime?
+  
+  sessions      Session[]
+  transactions  Transaction[] @relation("CreatedBy")
+  confirmedTxns Transaction[] @relation("ConfirmedBy")
+  movements     StockMovement[]
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  refreshToken String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  ipAddress    String?
+  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id            String   @id @default(uuid())
+  sku           String   @unique
+  name          String
+  description   String?
+  category      String?
+  unit          String   @default("pcs")
+  costPrice     Decimal  @db.Decimal(15, 2)
+  sellingPrice  Decimal  @db.Decimal(15, 2)
+  minStockLevel Int      @default(10)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  stock         Stock?
+  movements     StockMovement[]
+  txnItems      TransactionItem[]
+}
+
+model Stock {
+  id              String   @id @default(uuid())
+  productId       String   @unique
+  quantity        Int      @default(0)
+  reservedQty     Int      @default(0)
+  lastMovementAt  DateTime?
+  updatedAt       DateTime @updatedAt
+  
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model StockMovement {
+  id            String            @id @default(uuid())
+  productId     String
+  type          StockMovementType
+  quantity      Int
+  balanceAfter  Int
+  referenceType String?
+  referenceId   String?
+  notes         String?
+  performedBy   String
+  createdAt     DateTime          @default(now())
+  
+  product       Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user          User              @relation(fields: [performedBy], references: [id])
+}
+
+model Transaction {
+  id            String            @id @default(uuid())
+  code          String            @unique
+  type          TransactionType
+  status        TransactionStatus @default(DRAFT)
+  customerName  String?
+  supplierName  String?
+  notes         String?
+  subtotal      Decimal           @db.Decimal(15, 2) @default(0)
+  taxAmount     Decimal           @db.Decimal(15, 2) @default(0)
+  discountAmt   Decimal           @db.Decimal(15, 2) @default(0)
+  totalAmount   Decimal           @db.Decimal(15, 2) @default(0)
+  createdById   String
+  confirmedById String?
+  completedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  
+  createdBy     User              @relation("CreatedBy", fields: [createdById], references: [id])
+  confirmedBy   User?             @relation("ConfirmedBy", fields: [confirmedById], references: [id])
+  items         TransactionItem[]
+  logs          TransactionLog[]
+}
+
+model TransactionItem {
+  id            String      @id @default(uuid())
+  transactionId String
+  productId     String
+  quantity      Int
+  unitPrice     Decimal     @db.Decimal(15, 2)
+  discount      Decimal     @db.Decimal(15, 2) @default(0)
+  lineTotal     Decimal     @db.Decimal(15, 2)
+  createdAt     DateTime    @default(now())
+  
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  product       Product     @relation(fields: [productId], references: [id])
+}
+
+model TransactionLog {
+  id            String      @id @default(uuid())
+  transactionId String
+  action        String
+  oldStatus     String?
+  newStatus     String?
+  performedBy   String
+  details       Json?
+  createdAt     DateTime    @default(now())
+  
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+/* NyankoGarage Custom Theme */
+:root {
+  /* Primary Colors */
+  --primary: #7c3bed;
+  --primary-hover: #6b2bd6;
+  --primary-dark: #5b21b6;
+  
+  /* Background Colors */
+  --background-light: #f7f6f8;
+  --background-dark: #171121;
+  --surface-dark: #231a33;
+  --surface-darker: #1e162e;
+  
+  /* Border Colors */
+  --border-dark: #463366;
+  --border-light: #312447;
+  
+  /* Text Colors */
+  --text-primary: #ffffff;
+  --text-secondary: #a692c8;
+  --text-muted: #6b5b80;
+  
+  /* Input Colors */
+  --input-bg: #312447;
+  --input-placeholder: #a692c8;
+  
+  /* Status Colors */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-background: var(--background-dark);
+  --color-foreground: var(--text-primary);
+  --font-sans: 'Inter', var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Dark mode by default */
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background-dark);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-dark);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* Glass Effect */
+.glass-card {
+  background: rgba(35, 26, 51, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Animated Background for Login */
+.animated-bg {
+  background: linear-gradient(-45deg, #171121, #2e1065, #7c3bed, #be185d, #1e3a8a);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Focus styles */
+input:focus, select:focus, textarea:focus, button:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: var(--primary);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--primary);
+  color: white;
+}

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { StockAdjustmentModal } from '@/components/ui';
 import api from '@/lib/api';
+import { useInventorySocket } from '@/hooks/useSocket';
 
 interface InventoryItem {
     id: string;
@@ -163,6 +164,12 @@ function InventoryPageContent() {
         }, 300);
         return () => clearTimeout(timer);
     }, [search]);
+
+    // Real-time updates via WebSocket
+    useInventorySocket(() => {
+        fetchInventory();
+        if (activeTab === 'movements') fetchMovements();
+    });
 
     // No client-side filtering needed - backend handles everything
     const displayItems = inventory;

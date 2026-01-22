@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../prisma';
 import { Prisma, StockMovementType } from '@prisma/client';
 import { IsString, IsNumber, IsOptional, IsIn } from 'class-validator';
+import { EventsGateway } from '../../events/events.gateway';
 
 export class StockAdjustmentDto {
     @IsString()
@@ -23,7 +24,10 @@ export class StockAdjustmentDto {
 
 @Injectable()
 export class InventoryService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private eventsGateway: EventsGateway,
+    ) { }
 
     async findAll(query: { search?: string; category?: string; stockStatus?: string; page?: number; limit?: number }) {
         const { search, category, stockStatus, page = 1, limit = 10 } = query;
@@ -143,7 +147,7 @@ export class InventoryService {
                 throw new BadRequestException('Invalid adjustment type');
         }
 
-        return this.prisma.$transaction(async (tx) => {
+        const result = await this.prisma.$transaction(async (tx) => {
             // Update stock
             await tx.stock.update({
                 where: { productId: dto.productId },
@@ -172,6 +176,13 @@ export class InventoryService {
                 adjustment: movementQty,
             };
         });
+
+        // Emit WebSocket events for real-time updates
+        this.eventsGateway.emitInventoryChange();
+        this.eventsGateway.emitDashboardChange();
+        this.eventsGateway.emitProductChange();
+
+        return result;
     }
 
     async getMovements(productId?: string, page = 1, limit = 20) {

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { TransactionFormModal, TransactionActions, TransactionDetailModal } from '@/components/ui';
 import api from '@/lib/api';
+import { useTransactionSocket } from '@/hooks/useSocket';
 
 interface Transaction {
     id: string;
@@ -125,6 +126,9 @@ function TransactionsPageContent() {
             setLoading(false);
         }
     };
+
+    // Real-time updates via WebSocket
+    useTransactionSocket(fetchTransactions);
 
     // No client-side filtering - backend handles everything
     const displayTransactions = transactions;

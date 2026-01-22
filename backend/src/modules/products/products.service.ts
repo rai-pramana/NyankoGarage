@@ -2,10 +2,14 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { PrismaService } from '../../prisma';
 import { CreateProductDto, UpdateProductDto, ProductQueryDto } from './dto/product.dto';
 import { Prisma } from '@prisma/client';
+import { EventsGateway } from '../../events/events.gateway';
 
 @Injectable()
 export class ProductsService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private eventsGateway: EventsGateway,
+    ) { }
 
     async create(dto: CreateProductDto, userId: string) {
         // Check for duplicate SKU (only among active products)
@@ -23,7 +27,7 @@ export class ProductsService {
         const { initialStock, ...productData } = dto;
 
         // Create product with stock in transaction
-        return this.prisma.$transaction(async (tx) => {
+        const result = await this.prisma.$transaction(async (tx) => {
             const product = await tx.product.create({
                 data: {
                     ...productData,
@@ -62,6 +66,13 @@ export class ProductsService {
             // Return product with stock (from within transaction)
             return { ...product, stock };
         });
+
+        // Emit WebSocket events for real-time updates
+        this.eventsGateway.emitProductChange();
+        this.eventsGateway.emitInventoryChange();
+        this.eventsGateway.emitDashboardChange();
+
+        return result;
     }
 
     async findAll(query: ProductQueryDto) {
@@ -168,7 +179,7 @@ export class ProductsService {
             }
         }
 
-        return this.prisma.product.update({
+        const result = await this.prisma.product.update({
             where: { id },
             data: {
                 ...dto,
@@ -177,6 +188,12 @@ export class ProductsService {
             },
             include: { stock: true },
         });
+
+        // Emit WebSocket events
+        this.eventsGateway.emitProductChange();
+        this.eventsGateway.emitInventoryChange();
+
+        return result;
     }
 
     async remove(id: string) {
@@ -211,6 +228,11 @@ export class ProductsService {
                 where: { id },
             });
         });
+
+        // Emit WebSocket events
+        this.eventsGateway.emitProductChange();
+        this.eventsGateway.emitInventoryChange();
+        this.eventsGateway.emitDashboardChange();
 
         return { message: 'Product deleted successfully', sku: product.sku };
     }

@@ -2,10 +2,14 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTransactionDto, TransactionQueryDto } from './dto';
 import { TransactionStatus, StockMovementType } from '@prisma/client';
+import { EventsGateway } from '../../events/events.gateway';
 
 @Injectable()
 export class TransactionsService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private eventsGateway: EventsGateway,
+    ) { }
 
     async create(dto: CreateTransactionDto, userId: string) {
         // Generate unique transaction code using timestamp and random suffix
@@ -64,6 +68,11 @@ export class TransactionsService {
 
             return txn;
         });
+
+        // Emit WebSocket event for real-time updates
+        this.eventsGateway.emitTransactionChange();
+        this.eventsGateway.emitDashboardChange();
+        this.eventsGateway.emitInventoryChange();
 
         return transaction;
     }
@@ -295,6 +304,11 @@ export class TransactionsService {
             });
         });
 
+        // Emit WebSocket events for real-time updates
+        this.eventsGateway.emitTransactionChange();
+        this.eventsGateway.emitDashboardChange();
+        this.eventsGateway.emitInventoryChange();
+
         return this.findOne(id);
     }
 
@@ -305,7 +319,7 @@ export class TransactionsService {
             throw new BadRequestException('Completed transactions cannot be canceled');
         }
 
-        return this.prisma.transaction.update({
+        const result = await this.prisma.transaction.update({
             where: { id },
             data: {
                 status: TransactionStatus.CANCELED,
@@ -317,6 +331,12 @@ export class TransactionsService {
                 },
             },
         });
+
+        // Emit WebSocket events
+        this.eventsGateway.emitTransactionChange();
+        this.eventsGateway.emitDashboardChange();
+
+        return result;
     }
 
     async delete(id: string) {
@@ -330,6 +350,10 @@ export class TransactionsService {
         await this.prisma.transaction.delete({
             where: { id },
         });
+
+        // Emit WebSocket events
+        this.eventsGateway.emitTransactionChange();
+        this.eventsGateway.emitDashboardChange();
 
         return { message: 'Transaction deleted successfully' };
     }

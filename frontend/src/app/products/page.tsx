@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ProductFormModal } from '@/components/ui';
 import api from '@/lib/api';
+import { useProductSocket } from '@/hooks/useSocket';
 
 interface Product {
     id: string;
@@ -135,6 +136,9 @@ function ProductsPageContent() {
             setDeletingId(null);
         }
     };
+
+    // Real-time updates via WebSocket
+    useProductSocket(fetchProducts);
 
     const getStockStatus = (product: Product) => {
         const qty = product.stock?.quantity || 0;

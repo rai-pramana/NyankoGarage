@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import api from '@/lib/api';
+import { useDashboardSocket } from '@/hooks/useSocket';
 
 interface DashboardStats {
     todayRevenue: number;
@@ -270,6 +271,9 @@ export default function DashboardPage() {
             setLoading(false);
         }
     };
+
+    // Real-time updates via WebSocket
+    useDashboardSocket(fetchDashboardData);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('en-US', {

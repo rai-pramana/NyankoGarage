@@ -1,21 +1,22 @@
 import axios from 'axios';
 
-// Create axios instance without baseURL initially
+// API URL: Use environment variable if set, otherwise fall back to localhost
+const getApiUrl = () => {
+    // In production or when NEXT_PUBLIC_API_URL is set, use it
+    if (process.env.NEXT_PUBLIC_API_URL) {
+        return process.env.NEXT_PUBLIC_API_URL;
+    }
+    // In development, use localhost
+    return 'http://localhost:3001/api';
+};
+
+// Create axios instance
 export const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    withCredentials: true,
+    withCredentials: false, // Disable cookies for cross-origin requests to Render
 });
-
-// Helper to get API URL dynamically (works on client only)
-const getApiUrl = () => {
-    if (typeof window !== 'undefined') {
-        const hostname = window.location.hostname;
-        return `http://${hostname}:3001/api`;
-    }
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-};
 
 // Request interceptor to add auth token AND set baseURL dynamically
 api.interceptors.request.use(

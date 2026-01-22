@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { TransactionFormModal, TransactionActions, TransactionDetailModal } from '@/components/ui';
@@ -20,7 +20,7 @@ interface Transaction {
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
-export default function TransactionsPage() {
+function TransactionsPageContent() {
     const searchParams = useSearchParams();
     const initialSearch = searchParams.get('search') || '';
 
@@ -405,5 +405,19 @@ export default function TransactionsPage() {
                 transactionId={viewingTransactionId}
             />
         </DashboardLayout>
+    );
+}
+
+export default function TransactionsPage() {
+    return (
+        <Suspense fallback={
+            <DashboardLayout>
+                <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#7c3bed]"></div>
+                </div>
+            </DashboardLayout>
+        }>
+            <TransactionsPageContent />
+        </Suspense>
     );
 }

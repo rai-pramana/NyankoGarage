@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ProductFormModal } from '@/components/ui';
@@ -32,7 +32,7 @@ interface PaginationMeta {
 const CATEGORIES = ['Fluids', 'Brakes', 'Filters', 'Ignition', 'Electrical', 'Engine', 'Accessories', 'Other'];
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
-export default function ProductsPage() {
+function ProductsPageContent() {
     const searchParams = useSearchParams();
     const initialSearch = searchParams.get('search') || '';
 
@@ -362,5 +362,19 @@ export default function ProductsPage() {
                 product={editingProduct}
             />
         </DashboardLayout>
+    );
+}
+
+export default function ProductsPage() {
+    return (
+        <Suspense fallback={
+            <DashboardLayout>
+                <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#7c3bed]"></div>
+                </div>
+            </DashboardLayout>
+        }>
+            <ProductsPageContent />
+        </Suspense>
     );
 }

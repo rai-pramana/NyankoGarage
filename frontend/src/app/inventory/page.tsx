@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { StockAdjustmentModal } from '@/components/ui';
@@ -34,7 +34,7 @@ interface StockMovement {
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const CATEGORIES = ['Fluids', 'Brakes', 'Filters', 'Ignition', 'Electrical', 'Engine', 'Accessories', 'Other'];
 
-export default function InventoryPage() {
+function InventoryPageContent() {
     const searchParams = useSearchParams();
     const initialStockStatus = searchParams.get('stockStatus') || '';
 
@@ -544,5 +544,19 @@ export default function InventoryPage() {
                 product={adjustingProduct}
             />
         </DashboardLayout>
+    );
+}
+
+export default function InventoryPage() {
+    return (
+        <Suspense fallback={
+            <DashboardLayout>
+                <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#7c3bed]"></div>
+                </div>
+            </DashboardLayout>
+        }>
+            <InventoryPageContent />
+        </Suspense>
     );
 }

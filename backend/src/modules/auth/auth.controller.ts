@@ -2,7 +2,7 @@ import { Controller, Post, Patch, Body, UseGuards, Request, HttpCode, HttpStatus
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto, RefreshTokenDto } from './dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { IsString, MinLength } from 'class-validator';
+import { IsString, MinLength, IsEmail } from 'class-validator';
 
 class UpdateProfileDto {
     @IsString()
@@ -12,6 +12,20 @@ class UpdateProfileDto {
 class ChangePasswordDto {
     @IsString()
     currentPassword: string;
+
+    @IsString()
+    @MinLength(6)
+    newPassword: string;
+}
+
+class ForgotPasswordDto {
+    @IsEmail()
+    email: string;
+}
+
+class ResetPasswordDto {
+    @IsString()
+    token: string;
 
     @IsString()
     @MinLength(6)
@@ -66,5 +80,17 @@ export class AuthController {
     async changePassword(@Request() req: any, @Body() dto: ChangePasswordDto) {
         await this.authService.changePassword(req.user.id, dto);
         return { message: 'Password changed successfully' };
+    }
+
+    @Post('forgot-password')
+    @HttpCode(HttpStatus.OK)
+    async forgotPassword(@Body() dto: ForgotPasswordDto) {
+        return this.authService.forgotPassword(dto.email);
+    }
+
+    @Post('reset-password')
+    @HttpCode(HttpStatus.OK)
+    async resetPassword(@Body() dto: ResetPasswordDto) {
+        return this.authService.resetPassword(dto.token, dto.newPassword);
     }
 }

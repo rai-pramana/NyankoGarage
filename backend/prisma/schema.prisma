@@ -44,10 +44,11 @@ model User {
   updatedAt     DateTime  @updatedAt
   lastLogin     DateTime?
   
-  sessions      Session[]
-  transactions  Transaction[] @relation("CreatedBy")
-  confirmedTxns Transaction[] @relation("ConfirmedBy")
-  movements     StockMovement[]
+  sessions       Session[]
+  passwordResets PasswordReset[]
+  transactions   Transaction[] @relation("CreatedBy")
+  confirmedTxns  Transaction[] @relation("ConfirmedBy")
+  movements      StockMovement[]
 }
 
 model Session {
@@ -59,6 +60,17 @@ model Session {
   ipAddress    String?
   
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Product {

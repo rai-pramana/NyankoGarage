@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,55 +8,43 @@ import { z } from 'zod';
 import { useAuthStore } from '@/stores/auth.store';
 import Link from 'next/link';
 
-const loginSchema = z.object({
+const registerSchema = z.object({
+    fullName: z.string().min(2, 'Name must be at least 2 characters'),
     email: z.string().email('Invalid email address'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
+    confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
 });
 
-type LoginFormData = z.infer<typeof loginSchema>;
+type RegisterFormData = z.infer<typeof registerSchema>;
 
-export default function LoginPage() {
+export default function RegisterPage() {
     const router = useRouter();
-    const { login } = useAuthStore();
+    const { register: registerUser } = useAuthStore();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
-    const [rememberMe, setRememberMe] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const {
         register,
         handleSubmit,
         formState: { errors },
-        setValue,
-    } = useForm<LoginFormData>({
-        resolver: zodResolver(loginSchema),
+    } = useForm<RegisterFormData>({
+        resolver: zodResolver(registerSchema),
     });
 
-    // Load remembered email on mount
-    useEffect(() => {
-        const rememberedEmail = localStorage.getItem('rememberedEmail');
-        if (rememberedEmail) {
-            setValue('email', rememberedEmail);
-            setRememberMe(true);
-        }
-    }, [setValue]);
-
-    const onSubmit = async (data: LoginFormData) => {
+    const onSubmit = async (data: RegisterFormData) => {
         setIsLoading(true);
         setError(null);
 
         try {
-            // Handle Remember Me
-            if (rememberMe) {
-                localStorage.setItem('rememberedEmail', data.email);
-            } else {
-                localStorage.removeItem('rememberedEmail');
-            }
-
-            await login(data.email, data.password);
+            await registerUser(data.email, data.password, data.fullName);
             router.push('/dashboard');
         } catch (err: any) {
-            setError(err.message || 'Login failed');
+            setError(err.message || 'Registration failed');
         } finally {
             setIsLoading(false);
         }
@@ -69,17 +57,17 @@ export default function LoginPage() {
             <div className="absolute bottom-[-10%] right-[-10%] h-[500px] w-[500px] rounded-full bg-pink-600/20 blur-[100px]" />
 
             <div className="flex h-full grow flex-col items-center justify-center p-4">
-                {/* Login Card */}
+                {/* Register Card */}
                 <div className="glass-card w-full max-w-[480px] rounded-2xl p-8 sm:p-10 flex flex-col gap-6 relative z-10">
                     {/* Header Section */}
                     <div className="flex flex-col items-center gap-2 text-center">
                         <div className="flex items-center justify-center h-16 w-16 rounded-full bg-[#7c3bed]/20 text-[#7c3bed] mb-2">
                             <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                                <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                             </svg>
                         </div>
-                        <h1 className="text-3xl font-black leading-tight tracking-tight text-white">NyankoGarage</h1>
-                        <p className="text-[#a692c8] text-sm font-medium">Garage Management System</p>
+                        <h1 className="text-3xl font-black leading-tight tracking-tight text-white">Create Account</h1>
+                        <p className="text-[#a692c8] text-sm font-medium">Join NyankoGarage today</p>
                     </div>
 
                     {/* Error Message */}
@@ -90,7 +78,31 @@ export default function LoginPage() {
                     )}
 
                     {/* Form Section */}
-                    <form className="flex flex-col gap-5 mt-2" onSubmit={handleSubmit(onSubmit)}>
+                    <form className="flex flex-col gap-4 mt-2" onSubmit={handleSubmit(onSubmit)}>
+                        {/* Full Name Field */}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-white text-sm font-medium leading-normal" htmlFor="fullName">
+                                Full Name
+                            </label>
+                            <div className="flex w-full items-stretch rounded-xl bg-[#312447] border border-transparent focus-within:border-[#7c3bed]/50 transition-colors">
+                                <input
+                                    {...register('fullName')}
+                                    className="flex w-full min-w-0 flex-1 resize-none bg-transparent text-white focus:outline-0 focus:ring-0 border-none h-12 px-4 placeholder:text-[#a692c8] text-base font-normal leading-normal rounded-xl"
+                                    id="fullName"
+                                    placeholder="John Doe"
+                                    type="text"
+                                />
+                                <div className="flex items-center justify-center pr-4 text-[#a692c8]">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                </div>
+                            </div>
+                            {errors.fullName && (
+                                <span className="text-red-400 text-xs">{errors.fullName.message}</span>
+                            )}
+                        </div>
+
                         {/* Email Field */}
                         <div className="flex flex-col gap-2">
                             <label className="text-white text-sm font-medium leading-normal" htmlFor="email">
@@ -101,7 +113,7 @@ export default function LoginPage() {
                                     {...register('email')}
                                     className="flex w-full min-w-0 flex-1 resize-none bg-transparent text-white focus:outline-0 focus:ring-0 border-none h-12 px-4 placeholder:text-[#a692c8] text-base font-normal leading-normal rounded-xl"
                                     id="email"
-                                    placeholder="user@nyanko.garage"
+                                    placeholder="you@example.com"
                                     type="email"
                                 />
                                 <div className="flex items-center justify-center pr-4 text-[#a692c8]">
@@ -125,7 +137,7 @@ export default function LoginPage() {
                                     {...register('password')}
                                     className="flex w-full min-w-0 flex-1 resize-none bg-transparent text-white focus:outline-0 focus:ring-0 border-none h-12 px-4 placeholder:text-[#a692c8] text-base font-normal leading-normal rounded-xl"
                                     id="password"
-                                    placeholder="Enter your password"
+                                    placeholder="At least 6 characters"
                                     type={showPassword ? 'text' : 'password'}
                                 />
                                 <button
@@ -147,25 +159,39 @@ export default function LoginPage() {
                             )}
                         </div>
 
-                        {/* Options Row */}
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <label className="flex items-center gap-3 cursor-pointer group">
-                                <input
-                                    type="checkbox"
-                                    checked={rememberMe}
-                                    onChange={(e) => setRememberMe(e.target.checked)}
-                                    className="h-5 w-5 rounded border-[#463366] border-2 bg-transparent text-[#7c3bed] checked:bg-[#7c3bed] checked:border-[#7c3bed] focus:ring-0 focus:ring-offset-0 focus:border-[#7c3bed] focus:outline-none transition-all cursor-pointer"
-                                />
-                                <span className="text-gray-300 group-hover:text-white text-sm font-normal transition-colors select-none">
-                                    Remember me
-                                </span>
+                        {/* Confirm Password Field */}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-white text-sm font-medium leading-normal" htmlFor="confirmPassword">
+                                Confirm Password
                             </label>
-                            <Link className="text-[#7c3bed] text-sm font-medium hover:text-white transition-colors underline-offset-4 hover:underline" href="/forgot-password">
-                                Forgot password?
-                            </Link>
+                            <div className="flex w-full items-stretch rounded-xl bg-[#312447] border border-transparent focus-within:border-[#7c3bed]/50 transition-colors">
+                                <input
+                                    {...register('confirmPassword')}
+                                    className="flex w-full min-w-0 flex-1 resize-none bg-transparent text-white focus:outline-0 focus:ring-0 border-none h-12 px-4 placeholder:text-[#a692c8] text-base font-normal leading-normal rounded-xl"
+                                    id="confirmPassword"
+                                    placeholder="Confirm your password"
+                                    type={showConfirmPassword ? 'text' : 'password'}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="flex items-center justify-center pr-4 text-[#a692c8] cursor-pointer hover:text-white transition-colors"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        {showConfirmPassword ? (
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                        ) : (
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        )}
+                                    </svg>
+                                </button>
+                            </div>
+                            {errors.confirmPassword && (
+                                <span className="text-red-400 text-xs">{errors.confirmPassword.message}</span>
+                            )}
                         </div>
 
-                        {/* Login Button */}
+                        {/* Register Button */}
                         <button
                             type="submit"
                             disabled={isLoading}
@@ -177,7 +203,7 @@ export default function LoginPage() {
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                 </svg>
                             ) : (
-                                <span>Login</span>
+                                <span>Create Account</span>
                             )}
                         </button>
                     </form>
@@ -185,9 +211,9 @@ export default function LoginPage() {
                     {/* Footer */}
                     <div className="pt-2 text-center border-t border-white/10 mt-2">
                         <p className="text-[#a692c8] text-sm">
-                            Don&apos;t have an account?{' '}
-                            <Link className="text-white font-medium hover:text-[#7c3bed] transition-colors ml-1" href="/register">
-                                Sign Up
+                            Already have an account?{' '}
+                            <Link className="text-white font-medium hover:text-[#7c3bed] transition-colors ml-1" href="/login">
+                                Sign In
                             </Link>
                         </p>
                     </div>

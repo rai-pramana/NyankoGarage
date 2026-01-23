@@ -215,4 +215,78 @@ export class AuthService {
             data: { passwordHash },
         });
     }
+
+    async forgotPassword(email: string): Promise<{ message: string; resetToken?: string }> {
+        const user = await this.prisma.user.findUnique({
+            where: { email },
+        });
+
+        // Always return success to prevent email enumeration
+        if (!user) {
+            return { message: 'If an account exists with this email, you will receive a password reset link.' };
+        }
+
+        // Generate secure random token
+        const crypto = require('crypto');
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+        // Invalidate any existing reset tokens
+        await this.prisma.passwordReset.updateMany({
+            where: { userId: user.id, used: false },
+            data: { used: true },
+        });
+
+        // Create new reset token
+        await this.prisma.passwordReset.create({
+            data: {
+                userId: user.id,
+                token,
+                expiresAt,
+            },
+        });
+
+        // In production, send email with reset link
+        // For now, return the token directly (for testing)
+        return {
+            message: 'If an account exists with this email, you will receive a password reset link.',
+            resetToken: token, // Remove this in production!
+        };
+    }
+
+    async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+        const resetRecord = await this.prisma.passwordReset.findUnique({
+            where: { token },
+            include: { user: true },
+        });
+
+        if (!resetRecord) {
+            throw new UnauthorizedException('Invalid or expired reset token');
+        }
+
+        if (resetRecord.used) {
+            throw new UnauthorizedException('This reset link has already been used');
+        }
+
+        if (new Date() > resetRecord.expiresAt) {
+            throw new UnauthorizedException('This reset link has expired');
+        }
+
+        // Hash new password
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+
+        // Update password and mark token as used
+        await this.prisma.$transaction([
+            this.prisma.user.update({
+                where: { id: resetRecord.userId },
+                data: { passwordHash },
+            }),
+            this.prisma.passwordReset.update({
+                where: { id: resetRecord.id },
+                data: { used: true },
+            }),
+        ]);
+
+        return { message: 'Password has been reset successfully' };
+    }
 }
